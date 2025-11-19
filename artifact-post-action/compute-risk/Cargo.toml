@@ -1,0 +1,10 @@
+[package]
+name = "post-action-compute-risk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1.0.111"
+
+[profile.release]
+lto = true

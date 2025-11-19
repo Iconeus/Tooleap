@@ -1,2 +1,5 @@
 # Tooleap
-Tools for Tuleap. For instance Tuleap functions for automatic updates of artifacts.
+Tools for Tuleap.
+For instance Tuleap functions for automatic updates of artifacts.
+
+
