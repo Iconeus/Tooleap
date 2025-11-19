@@ -9,7 +9,6 @@ For instance Tuleap functions for automatic updates of artifacts.
 
 - [Environment Setup](#environment-setup)
 - [Installation](#installation)
-- [Configuration](#configuration)
 - [Usage](#usage)
 - [Troubleshooting](#troubleshooting)
 
@@ -69,8 +68,12 @@ Build the function
 cargo build --target wasm32-wasip1 --release
 ```
 
-Then upload the binary result file `(target/wasm32-wasip1/release/post-action-compute-risk.wasm)` to your Tracker administration (Administration > Workflow > Tuleap Functions).
+---
+## Usage
 
+Upload the binary result file `(target/wasm32-wasip1/release/post-action-compute-risk.wasm)` to your Tracker administration (Administration > Workflow > Tuleap Functions).
+
+---
 ## Troubleshooting
 
 ### Certificate error
