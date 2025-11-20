@@ -41,17 +41,24 @@ fn get_current_numeric_value(json: &Value, field_label: &str) -> Option<i64> {
         })
 }
 
-
+/// This function computes automacilly the risk level before and after mitigation based on
+/// the severity, probability and detectability fields.
+/// Limitations:
+/// - the severity, probability and detectability fields must have numeric values
+/// - the risk level field must have values corresponding to the product of severity * probability * detectability
+/// If any of these conditions is not met, the function will return an error.
 fn main() -> Result<(), Box<dyn Error>> {
     let json: Value = serde_json::from_reader(stdin()).map_err(|e| {
         eprintln!("ser: {e}");
         e
     })?;
 
+    // Retrieve fields values before mitigations
     let field_severity_before_value = get_current_numeric_value(&json, "Severity before mitigation");
     let field_probability_before_value = get_current_numeric_value(&json, "Probability before mitigation");
     let field_detectability_before_value = get_current_numeric_value(&json, "Detectability before mitigation");
 
+    // Check that the risk before mitigation field exists
     let field_risk = json["tracker"]["fields"].as_array()
         .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level before mitigation")});
 
@@ -65,10 +72,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("Cannot find Risk values")?;
     }
 
+    // Retrieve fields values after mitigations
     let field_severity_after_value = get_current_numeric_value(&json, "Severity after mitigation");
     let field_probability_after_value = get_current_numeric_value(&json, "Probability after mitigation");
     let field_detectability_after_value = get_current_numeric_value(&json, "Detectability after mitigation");
 
+    // Check that the risk after mitigation field exists
     let field_risk_after = json["tracker"]["fields"].as_array()
         .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level after mitigation")});
 
@@ -82,7 +91,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("Cannot find Risk values after mitigation")?;
     }
 
-    // Check if all required values are present
+    // Check if all required values are present and compute risk levels
     if let (Some(severity_value_before),
             Some(probability_value_before),
             Some(detectability_value_before),
@@ -93,6 +102,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let product_before = severity_value_before * probability_value_before * detectability_value_before;
         let product_after = severity_value_after * probability_value_after * detectability_value_after;
 
+        // Find matching risk values based on computed products
         let matching_value_before = risk_values.unwrap().into_iter()
         .find(|&value| {
             let value_label = value["label"].as_str().unwrap_or_default();
@@ -105,6 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             value_label == product_after.to_string()
         });
 
+        // Update the risk level fields with matching values
         if let (Some(matching_value_before), Some(matching_value_after)) = (matching_value_before, matching_value_after) {
             let field_id_before = field_risk.unwrap()["field_id"].as_i64().unwrap_or(0);
             let field_id_after = field_risk_after.unwrap()["field_id"].as_i64().unwrap_or(0);
