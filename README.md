@@ -68,6 +68,19 @@ Build the function
 cargo build --target wasm32-wasip1 --release
 ```
 
+### Files explanation
+The filesystem of the compute_risk is the following
+
+compute_risk/
+    - src/main.rs
+    - Cargo.lock
+    - Cargo.toml
+    - Makefile
+    - shell.nix
+
+The `main.rs` file contains the function source code in Rust, supported by WASI Preview 1 (WebAssembly). This is where you will edit the behavior of your artefacts.
+The `shell.nix` specifies the necessary packages to install in the NIX environment to build, convert files in WebAssembly. For instance `cargo` and `make`.
+
 ---
 ## Usage
 

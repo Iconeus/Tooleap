@@ -25,65 +25,35 @@ use serde_json::{json, Value};
 use std::error::Error;
 use std::io::stdin;
 
+/// Extracts an i64 from the "current.values" array given the field label.
+/// Looks for:
+/// current.values[*].label == field_label
+/// and then takes values[0].label and parses it as i64.
+/// Returns None if any step fails.
+fn get_current_numeric_value(json: &Value, field_label: &str) -> Option<i64> {
+
+    json["current"]["values"].as_array()
+        .and_then(|fields| {fields.into_iter().find(|&field| field["label"] == field_label)})
+        .and_then(|field| {field["values"].as_array()
+        .and_then(|values| values.first())
+        .and_then(|value| value["label"].as_str()) // Extracting value as a string
+        .and_then(|detectability_str| detectability_str.parse::<i64>().ok()) // Converting the string to an integer
+        })
+}
+
+
 fn main() -> Result<(), Box<dyn Error>> {
     let json: Value = serde_json::from_reader(stdin()).map_err(|e| {
         eprintln!("ser: {e}");
         e
     })?;
 
-    let values = &json["current"]["values"].as_array();
+    let field_severity_before_value = get_current_numeric_value(&json, "Severity before mitigation");
+    let field_probability_before_value = get_current_numeric_value(&json, "Probability before mitigation");
+    let field_detectability_before_value = get_current_numeric_value(&json, "Detectability before mitigation");
 
-    let field_severity_value = values
-        .and_then(|fields| {
-            fields
-                .into_iter()
-                .find(|&field| field["label"] == "Severity")
-        })
-        .and_then(|field| {
-            field["values"]
-                .as_array()
-                .and_then(|values| values.first())
-                .and_then(|value| value["label"].as_str())
-                .and_then(|severity_str| severity_str.parse::<i64>().ok())
-        });
-
-    let field_probability_value = values
-        .and_then(|fields| {
-            fields
-                .into_iter()
-                .find(|&field| field["label"] == "Probability")
-        })
-        .and_then(|field| {
-            field["values"]
-                .as_array()
-                .and_then(|values| values.first())
-                .and_then(|value| value["label"].as_str()) // Extracting the "Probability" value as a string
-                .and_then(|probability_str| probability_str.parse::<i64>().ok()) // Converting the string to an integer
-        });
-
-    // NEW CODE FOR DETECTABILITY
-    let field_detectability_value = values
-        .and_then(|fields| {
-            fields
-                .into_iter()
-                .find(|&field| field["label"] == "Detectability")
-        })
-        .and_then(|field| {
-            field["values"]
-                .as_array()
-                .and_then(|values| values.first())
-                .and_then(|value| value["label"].as_str()) // Extracting the "Probability" value as a string
-                .and_then(|detectability_str| detectability_str.parse::<i64>().ok()) // Converting the string to an integer
-        });
-    // END NEW CODE FOR DETECTABILITY
-
-    let field_risk = json["tracker"]["fields"]
-        .as_array()
-        .and_then(|fields| {
-            fields
-                .iter()
-                .find(|&field| field["label"] == "Risk")
-        });
+    let field_risk = json["tracker"]["fields"].as_array()
+        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level before mitigation")});
 
     if field_risk.is_none() {
         return Err("Cannot find field_risk")?;
@@ -95,31 +65,70 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Err("Cannot find Risk values")?;
     }
 
-    if let (Some(severity_value), Some(probability_value), Some(detectability_value)) = (field_severity_value, field_probability_value, field_detectability_value) {
-        let product = severity_value * probability_value * detectability_value;
+    let field_severity_after_value = get_current_numeric_value(&json, "Severity after mitigation");
+    let field_probability_after_value = get_current_numeric_value(&json, "Probability after mitigation");
+    let field_detectability_after_value = get_current_numeric_value(&json, "Detectability after mitigation");
 
-        let matching_value = risk_values.unwrap().into_iter()
+    let field_risk_after = json["tracker"]["fields"].as_array()
+        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level after mitigation")});
+
+    if field_risk_after.is_none() {
+        return Err("Cannot find field_risk_after")?;
+    }
+
+    let risk_values_after = field_risk_after.unwrap()["values"].as_array();
+
+    if risk_values_after.is_none() {
+        return Err("Cannot find Risk values after mitigation")?;
+    }
+
+    // Check if all required values are present
+    if let (Some(severity_value_before),
+            Some(probability_value_before),
+            Some(detectability_value_before),
+            Some(severity_value_after),
+            Some(probability_value_after),
+            Some(detectability_value_after)) = (field_severity_before_value, field_probability_before_value, field_detectability_before_value, field_severity_after_value, field_probability_after_value, field_detectability_after_value) {
+
+        let product_before = severity_value_before * probability_value_before * detectability_value_before;
+        let product_after = severity_value_after * probability_value_after * detectability_value_after;
+
+        let matching_value_before = risk_values.unwrap().into_iter()
         .find(|&value| {
             let value_label = value["label"].as_str().unwrap_or_default();
-            value_label == product.to_string()
+            value_label == product_before.to_string()
         });
 
-        if let Some(matching_value) = matching_value {
-            let field_id = field_risk.unwrap()["field_id"].as_i64().unwrap_or(0);
+        let matching_value_after = risk_values_after.unwrap().into_iter()
+        .find(|&value| {
+            let value_label = value["label"].as_str().unwrap_or_default();
+            value_label == product_after.to_string()
+        });
+
+        if let (Some(matching_value_before), Some(matching_value_after)) = (matching_value_before, matching_value_after) {
+            let field_id_before = field_risk.unwrap()["field_id"].as_i64().unwrap_or(0);
+            let field_id_after = field_risk_after.unwrap()["field_id"].as_i64().unwrap_or(0);
             println!("{}", json!({
                 "values": [{
-                    "field_id": field_id,
+                    "field_id": field_id_before,
                     "bind_value_ids": [
-                        matching_value["id"]
+                        matching_value_before["id"]
+                    ]
+                },
+                {
+                    "field_id": field_id_after,
+                    "bind_value_ids": [
+                        matching_value_after["id"]
                     ]
                 }]
             }).to_string());
 
-            Ok(())
         } else {
             return Err("Cannot find matching Risk value")?;
         }
     } else {
         return Err("Cannot find Severity or Probability field")?;
     }
+
+    Ok(())
 }
