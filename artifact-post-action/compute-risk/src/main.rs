@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Check that the risk before mitigation field exists
     let field_risk = json["tracker"]["fields"].as_array()
-        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level before mitigation")});
+        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "RPN before mitigation")});
 
     if field_risk.is_none() {
         return Err("Cannot find field_risk")?;
@@ -79,7 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Check that the risk after mitigation field exists
     let field_risk_after = json["tracker"]["fields"].as_array()
-        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "Risk level after mitigation")});
+        .and_then(|fields| {fields.iter().find(|&field| field["label"] == "RPN after mitigation")});
 
     if field_risk_after.is_none() {
         return Err("Cannot find field_risk_after")?;

@@ -2,6 +2,7 @@
 
 Tools for Tuleap.
 For instance Tuleap functions for automatic updates of artifacts.
+Inspired by https://github.com/Enalean/tuleap-function-examples
 
 ---
 
